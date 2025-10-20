@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mahr COIN | پنل مدیریت دارایی دیجیتال</title>
+  
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+
+  <style>
+  /* ---------------------- طراحی حرفه‌ای فین‌تک (بانکداری مدرن) ---------------------- */
+  :root {
+    --color-primary: #002d62;       /* آبی تیره سلطنتی (Navy Blue) */
+    --color-secondary: #004a99;     /* آبی اصلی برای دکمه‌ها و هایلایت */
+    --color-text: #1f2937;          /* خاکستری ذغالی تیره برای متن اصلی */
+    --color-muted: #6b7280;         /* خاکستری متوسط برای متن‌های کمکی */
+    --color-background: #f8f9fa;    /* پس‌زمینه خیلی روشن */
+    --color-card-bg: #ffffff;       /* پس‌زمینه کارت سفید خالص */
+    --color-border: #e5e7eb;        /* خطوط جداکننده نازک */
+    --color-success: #16a34a;       /* سبز تایید */
+    --color-danger: #dc2626;        /* قرمز هشدار */
+    --radius-default: 8px;          /* شعاع گوشه‌ها */
+    color-scheme: light;
+  }
+
+  * {
+    box-sizing: border-box;
+    font-family: 'Vazirmatn', Tahoma, Arial, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-background);
+    color: var(--color-text);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 50px 24px;
+    line-height: 1.6;
+    direction: rtl; /* اطمینان از راست به چپ */
+  }
+
+  .wrap {
+    width: 100%;
+    max-width: 1150px;
+  }
+
+  header {
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  h1 {
+    font-size: 28px;
+    margin: 0;
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+  
+  header .sub-header {
+      color: var(--color-muted);
+      font-size: 15px;
+      margin-top: 5px;
+  }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 20px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .card {
+    background: var(--color-card-bg);
+    padding: 25px;
+    border-radius: var(--radius-default);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); /* سایه عمیق‌تر و لوکس */
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 2fr 400px; 
+    gap: 30px;
+  }
+
+  label {
+    display: block;
+    font-size: 14px;
+    color: var(--color-text);
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    width: 100%;
+    padding: 13px 15px; /* ارتفاع و پدینگ بیشتر */
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    color: inherit;
+    font-size: 16px;
+    transition: all 0.2s ease;
+  }
+
+  input:focus, textarea:focus {
+    border-color: var(--color-secondary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 74, 153, 0.1); /* حلقه تمرکز ظریف آبی */
+  }
+
+  .muted {
+    color: var(--color-muted);
+    font-size: 14px;
+  }
+
+  .right {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  /* بخش موجودی - برجسته‌تر */
+  .balance-section {
+      text-align: center;
+      padding: 30px 20px;
+      background: var(--color-primary);
+      color: white;
+      border-radius: var(--radius-default);
+      box-shadow: 0 4px 15px rgba(0, 45, 98, 0.3);
+  }
+
+  .balance-section .muted {
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 300;
+      font-size: 15px;
+      margin-bottom: 10px;
+  }
+
+  .balance {
+    font-size: 44px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0;
+    margin-top: 5px;
+    font-family: Arial, sans-serif; /* برای نمایش بهتر اعداد لاتین */
+  }
+
+  .small {
+    font-size: 13px;
+    color: var(--color-muted);
+  }
+
+  .row {
+    display: flex;
+    gap: 15px;
+  }
+
+  /* دکمه اصلی */
+  .btn-primary {
+    cursor: pointer;
+    padding: 13px 20px;
+    border-radius: 6px;
+    border: 0;
+    background: var(--color-secondary);
+    color: #ffffff;
+    font-weight: 600;
+    transition: background-color 0.2s;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary);
+  }
+  
+  /* دکمه ثانویه (Ghost) */
+  .btn-secondary {
+    cursor: pointer;
+    padding: 13px 20px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text);
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+  
+  .btn-secondary:hover {
+      background: var(--color-background);
+  }
+
+  footer {
+    margin-top: 40px;
+    color: var(--color-muted);
+    font-size: 13px;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .alert-success {
+    background: #ecfdf5;
+    padding: 15px;
+    border-radius: 6px;
+    color: var(--color-success);
+    border: 1px solid #d1fae5;
+  }
+
+  .alert-danger {
+    background: #fef2f2;
+    color: var(--color-danger);
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    font-weight: 500;
+  }
+  
+  .controls-row {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 10px;
+      margin-top: 15px;
+  }
+
+  @media (max-width: 992px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    .right {
+      order: -1;
+    }
+  }
+</style>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>💰 Mahr COIN | پنل مدیریت دارایی دیجیتال</h1>
+      <div class="sub-header">سیستم احراز هویت SRLP64 | خروجی‌های یک‌بار مصرف برای امنیت حداکثری</div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>🔑 احراز هویت و ورود به حساب</h2>
+        
+        <div style="margin-top:20px">
+          <label for="chatIdInput">شناسه کاربری تلگرام (Chat ID)</label>
+          <input id="chatIdInput" placeholder="شناسه عددی منحصربه‌فرد که از ربات دریافت کرده‌اید" />
+        </div>
+
+        <div class="row" style="margin-top:15px">
+          <button id="startBtn" class="btn-primary">دریافت کد امنیتی</button>
+          <button id="loginBtn" class="btn-secondary">تأیید کد و ورود</button>
+        </div>
+
+        <div style="margin-top:20px">
+          <label for="codeInput">کد تأیید ۵ رقمی</label>
+          <input id="codeInput" placeholder="کد ارسالی به تلگرام شما" />
+        </div>
+        
+        <hr style="margin:30px 0; border:0; border-top:1px dashed var(--color-border);" />
+
+        <h2>🚀 انتقال و صدور دارایی (توکن یک‌بارمصرف)</h2>
+        <p class="muted small">این روش امن‌ترین راه برای انتقال است. توکن تولیدی را به گیرنده بدهید تا موجودی به حساب او واریز شود.</p>
+        
+        <div style="margin-top:15px">
+          <label for="transferAmount">مقدار مورد نظر برای انتقال (سکه ⛁)</label>
+          <input id="transferAmount" type="number" min="0" step="1" placeholder="مثال: ۵۰۰ سکه" />
+        </div>
+
+        <div style="margin-top:15px">
+          <label for="exportArea">توکن خروجی</label>
+          <textarea id="exportArea" style="height:90px;" placeholder="توکن SRLP64:E:... اینجا تولید و نمایش داده می‌شود"></textarea>
+          <div class="controls-row">
+            <button id="exportTokenBtn" class="btn-secondary">ساخت توکن یک‌بارمصرف</button>
+          </div>
+        </div>
+
+        <hr style="margin:30px 0; border:0; border-top:1px dashed var(--color-border);" />
+
+        <h2>⬇️ درون‌ریزی و واریز (استفاده از توکن)</h2>
+        <p class="muted small">توکنی که از فرستنده دریافت کرده‌اید را در اینجا قرار دهید تا موجودی به حساب شما اضافه شود.</p>
+        
+        <div style="margin-top:15px">
+          <label for="importArea">توکن SRLP64 دریافتی</label>
+          <textarea id="importArea" style="height:90px;" placeholder="توکن (مثلاً SRLP64:E:...) یا Base64 قدیمی را بچسبانید"></textarea>
+          <div class="controls-row">
+            <button id="importBase64" class="btn-primary">تأیید و درون‌ریزی</button>
+          </div>
+        </div>
+        
+        <div style="margin-top:30px" class="alert-danger">
+         ⚠️ **هشدار امنیتی:** هر گونه اقدام مخرب یا سو استفاده از دارایی‌های سیستمی پیگرد قانونی جدی خواهد داشت.
+        </div>
+
+      </section>
+
+      <aside class="right">
+        
+        <div class="card balance-section">
+          <div class="muted">موجودی فعلی شما (⛁)</div>
+          <div class="balance" id="currentBalance">—</div>
+          <div class="muted small" style="margin-top:15px;">
+              شناسه حساب: <strong id="currentChatIdDisplay">—</strong>
+          </div>
+          <div class="muted small">
+              آخرین به‌روزرسانی: <strong id="lastUpdateDisplay">—</strong>
+          </div>
+          
+          <div class="row" style="margin-top:20px">
+              <button id="collectBtn" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">بروزرسانی لحظه‌ای</button>
+              <button id="logoutBtn" class="btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);">خروج از حساب</button>
+          </div>
+        </div>
+        
+        <div class="card">
+            <h2>⚙️ تنظیمات و اطلاعات حساب</h2>
+            <div class="muted small" style="margin-bottom: 10px;">
+                نرخ تولید سکه: **<strong style="color:var(--color-primary); font-size:14px;">10 سکه / ساعت</strong>**
+            </div>
+            <div class="muted small">
+                سرویس‌دهنده: **<strong style="color:var(--color-primary); font-size:14px;">screenloop.ir</strong>**
+            </div>
+            <div style="margin-top:15px"><label class="muted small" style="display:flex; align-items:center;"><input id="autoSend" type="checkbox" checked style="width: auto; margin-left: 10px;" /> ارسال کد تأیید با ربات تلگرام</label></div>
+        </div>
+
+        <div class="card">
+            <h2>📘 راهنمای استفاده سریع</h2>
+            <ul style="padding-right: 20px; list-style-type: disc; margin-top: 10px;" class="muted small">
+                <li>Chat ID را وارد و «دریافت کد امنیتی» را بزنید.</li>
+                <li>کد دریافتی را وارد و «تأیید کد و ورود» را بزنید.</li>
+                <li>برای انتقال، مقدار را مشخص و توکن را تولید کنید.</li>
+                <li>توکن را به گیرنده بدهید تا در قسمت درون‌ریزی استفاده کند.</li>
+                <li>برای مشاهده موجودی دقیق، «بروزرسانی لحظه‌ای» را بزنید.</li>
+            </ul>
+        </div>
+
+      </aside>
+    </div>
+
+    <footer>
+        تمامی حقوق این سامانه متعلق به شرکت اسکرین لوپ است (Screenloop Corporation). © ۱۴۰۲
+    </footer>
+  </div>
+
+<script>
+/* ------------------ (کدهای Firebase و منطق JS بدون تغییر باقی می‌مانند) ------------------ */
+
+const XOR_KEY = 'rasan_key_42';
+const ENCODED_TOKEN_XOR = 'RVdCUl1sUlJBbw5zMyQaWR8QIxI2FwxRCi1LCCxtDhRAbVBGGA46KBptICIWKA==';
+
+function base64Decode(s){ try{ return atob(s); }catch(e){ return null; } }
+function xorString(str, key){
+  let out = '';
+  for(let i=0;i<str.length;i++){ out += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length)); }
+  return out;
+}
+
+function getBotToken(){
+  const step1 = base64Decode(ENCODED_TOKEN_XOR);
+  if(!step1) return null;
+  const token = xorString(step1, XOR_KEY);
+  return token;
+}
+
+/* ------------------ تنظیم Firebase ------------------ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBiHkCAzkTzUO7weLsKGXc917JNob-dhO4",
+  authDomain: "rasancoin.firebaseapp.com",
+  projectId: "rasancoin",
+  storageBucket: "rasancoin.firebasestorage.app",
+  messagingSenderId: "289625483659",
+  appId: "1:289625483659:web:b7e170072cf09a7157678e",
+  measurementId: "G-KNNM4FF9MS"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+auth.signInAnonymously().catch(e => console.warn('auth error', e));
+
+/* ------------------ منطق NatCoin با Firestore ------------------ */
+const RATE_PER_HOUR = 10;
+
+async function getUser(chatId){
+  const doc = await db.collection('users').doc(chatId).get();
+  return doc.exists ? doc.data() : null;
+}
+async function setUser(chatId, userObj){
+  await db.collection('users').doc(chatId).set(userObj, { merge: true });
+}
+
+function genCode(){ return Math.floor(10000 + Math.random()*90000).toString() }
+function formatDate(ts){ if(!ts) return '—'; const d = new Date(ts); return d.toLocaleString('fa-IR', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'numeric', day: 'numeric' }); }
+function accrueFor(user){
+  const now = Date.now();
+  if(!user.lastUpdated){ user.lastUpdated = now; return; }
+  const elapsed = now - user.lastUpdated;
+  const coins = elapsed / 3600000 * RATE_PER_HOUR;
+  user.balance = (user.balance||0) + coins;
+  user.lastUpdated = now;
+}
+
+/* ------------------ Export as one-time token ------------------ */
+async function createExport(payload){
+  const docRef = db.collection('exports').doc();
+  const docData = { payload, used: false, created: Date.now() };
+  await docRef.set(docData);
+  return docRef.id;
+}
+
+async function claimExportOnce(exportId){
+  const docRef = db.collection('exports').doc(exportId);
+  return await db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if(!snap.exists) throw 'export not found';
+    const data = snap.data();
+    if(data.used) throw 'export already used';
+    tx.update(docRef, { used: true, claimedAt: Date.now() });
+    return data.payload;
+  });
+}
+
+/* ------------------ ارسال پیام تلگرام ------------------ */
+async function sendTelegramMessageHidden(chatId, text){
+  const token = getBotToken();
+  if(!token) return { ok:false, error:'token decode failed' };
+  const url = `https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`;
+  try{
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: chatId, text }) });
+    const data = await res.json();
+    return data;
+  }catch(err){ return { ok:false, error:err.message } }
+}
+
+/* ------------------ Export logic ------------------ */
+async function exportAccountOneTime(chatId, transferAmount = 0){
+  const u = await getUser(chatId);
+  if(!u) throw 'حساب کاربری یافت نشد.';
+  const amount = Number(transferAmount) || 0;
+  if(amount < 0) throw 'مقدار انتقال نامعتبر است.';
+  if(amount > 0){
+    if((u.balance||0) < amount) throw 'موجودی کافی نیست.';
+    u.balance = (u.balance||0) - amount;
+    u.lastUpdated = Date.now();
+    await setUser(chatId, u);
+  }
+  const transfer = amount>0 ? { amount: amount, from: chatId, ts: Date.now(), id: (Date.now().toString(36) + Math.random().toString(36).slice(2,8)) } : null;
+  const payload = { chatId, account: u, transfer };
+  const eid = await createExport(payload);
+  return `SRLP64:E:${eid}`;
+}
+
+/* ------------------ Import logic ------------------ */
+async function importAccountFromInput(input){
+  input = (input||'').trim();
+  if(!input) throw 'ورودی خالی است.';
+  
+  // 1. New Token Form
+  if(input.startsWith('SRLP64:E:')){
+    const eid = input.slice('SRLP64:E:'.length);
+    const payload = await claimExportOnce(eid);
+    
+    // Update source account
+    await setUser(payload.chatId, payload.account);
+    
+    // Handle transfer to target
+    if(payload.transfer && payload.transfer.amount){
+      let target = currentChatId;
+      if(!target || target === payload.chatId){
+        target = prompt('لطفاً Chat ID مقصد را برای افزودن مبلغ وارد کنید (Chat ID):', '');
+        if(!target) throw 'Chat ID مقصد وارد نشد.';
+      }
+      let tuser = await getUser(target);
+      if(!tuser) tuser = { balance:0, lastUpdated: Date.now() };
+      tuser.balance = (tuser.balance||0) + Number(payload.transfer.amount);
+      tuser.lastUpdated = Date.now();
+      await setUser(target, tuser);
+      return target;
+    }
+    return payload.chatId;
+    
+  } else {
+    // 2. Legacy Base64 JSON
+    const raw = base64Decode(input);
+    if(!raw) throw 'فرمت Base64 نامعتبر است.';
+    
+    const obj = JSON.parse(raw);
+    await setUser(obj.chatId, obj.account);
+    
+    if(obj.transfer && obj.transfer.amount){
+      let target = currentChatId;
+      if(!target || target === obj.chatId){
+        target = prompt('لطفاً Chat ID مقصد را برای افزودن مبلغ وارد کنید (Chat ID):', '');
+        if(!target) throw 'Chat ID مقصد وارد نشد.';
+      }
+      let tuser = await getUser(target);
+      if(!tuser) tuser = { balance:0, lastUpdated: Date.now() };
+      tuser.balance = (tuser.balance||0) + Number(obj.transfer.amount);
+      tuser.lastUpdated = Date.now();
+      await setUser(target, tuser);
+      return target;
+    }
+    return obj.chatId;
+  }
+}
+
+/* ------------------ رابط کاربری و توابع اصلی ------------------ */
+const chatIdInput = document.getElementById('chatIdInput');
+const codeInput = document.getElementById('codeInput');
+const startBtn = document.getElementById('startBtn');
+const loginBtn = document.getElementById('loginBtn');
+const collectBtn = document.getElementById('collectBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const exportTokenBtn = document.getElementById('exportTokenBtn');
+const exportArea = document.getElementById('exportArea');
+const importArea = document.getElementById('importArea');
+const importBase64Btn = document.getElementById('importBase64');
+const transferAmountInput = document.getElementById('transferAmount');
+
+let currentChatId = null;
+
+async function renderAccount(chatId){
+  const balanceDisplay = document.getElementById('currentBalance');
+  const updateDisplay = document.getElementById('lastUpdateDisplay');
+  const idDisplay = document.getElementById('currentChatIdDisplay');
+  
+  if(!chatId){ 
+    balanceDisplay.textContent = '—'; 
+    updateDisplay.textContent = '—'; 
+    idDisplay.textContent = '—'; 
+    return; 
+  }
+  
+  const u = await getUser(chatId);
+  if(!u){ 
+    balanceDisplay.textContent = '۰'; 
+    updateDisplay.textContent = '—'; 
+    idDisplay.textContent = chatId;
+    return; 
+  }
+  
+  accrueFor(u);
+  await setUser(chatId, u);
+  
+  balanceDisplay.textContent = Math.floor(u.balance).toLocaleString('fa-IR') + ' ⛁';
+  updateDisplay.textContent = formatDate(u.lastUpdated);
+  idDisplay.textContent = chatId;
+}
+
+/* UI handlers */
+startBtn.addEventListener('click', async ()=>{
+  const chatId = chatIdInput.value.trim(); 
+  if(!chatId) return alert('خطا: لطفاً Chat ID را وارد کنید.');
+  
+  const code = genCode();
+  await db.collection('codes').doc(chatId).set({ code, created: Date.now() });
+  
+  if(document.getElementById('autoSend').checked){
+    const text = `کد تایید ${code} برای ورود به پنل Mahr COIN\n(کد فقط یک‌بار معتبر است)`;
+    const resp = await sendTelegramMessageHidden(chatId, text);
+    if(resp && resp.ok) alert('✅ کد امنیتی با موفقیت به تلگرام شما ارسال شد.'); 
+    else { console.error(resp); alert('❌ خطا: ارسال کد موفق نبود. لطفاً Chat ID را مجدداً چک کنید.'); }
+  } else alert(`✅ کد ساخته شد: ${code} (ارسال ربات غیرفعال است)`);
+});
+
+loginBtn.addEventListener('click', async ()=>{
+  const chatId = chatIdInput.value.trim(); 
+  const code = codeInput.value.trim(); 
+  if(!chatId||!code) return alert('خطا: هر دو فیلد Chat ID و کد تأیید الزامی است.');
+  
+  try {
+    const snap = await db.collection('codes').doc(chatId).get();
+    if(!snap.exists) return alert('خطا: ابتدا «دریافت کد امنیتی» را بزنید.');
+    const e = snap.data();
+    if(e.code !== code) return alert('خطا: کد تأیید نادرست است.');
+    
+    let u = await getUser(chatId);
+    if(!u) u = { balance:0, lastUpdated: Date.now() };
+    u.lastUpdated = u.lastUpdated || Date.now();
+    await setUser(chatId, u);
+    await db.collection('codes').doc(chatId).delete();
+    
+    currentChatId = chatId; 
+    localStorage.setItem('natcoin_last_chat', chatId); 
+    alert('✅ ورود موفقیت‌آمیز. به پنل کاربری خوش آمدید.'); 
+    await renderAccount(currentChatId);
+    
+  } catch(e) {
+    alert('❌ خطا در ورود: '+ (e.message || e));
+    console.error(e);
+  }
+});
+
+collectBtn.addEventListener('click', async ()=>{ 
+  if(!currentChatId) return alert('خطا: ابتدا وارد حساب کاربری شوید.'); 
+  try {
+    let u = await getUser(currentChatId); 
+    if(!u) return alert('خطا: حساب کاربری یافت نشد.'); 
+    accrueFor(u); 
+    await setUser(currentChatId, u); 
+    alert('✅ موجودی به‌روزرسانی شد.');
+    await renderAccount(currentChatId); 
+  } catch(e) {
+    alert('❌ خطا در به‌روزرسانی: '+ (e.message || e));
+  }
+});
+
+logoutBtn.addEventListener('click', ()=>{ 
+  currentChatId = null; 
+  localStorage.removeItem('natcoin_last_chat');
+  renderAccount(null); 
+  alert('✅ خروج امن انجام شد.'); 
+});
+
+exportTokenBtn.addEventListener('click', async ()=>{
+  try{
+    const chatId = chatIdInput.value.trim(); 
+    if(!chatId || chatId !== currentChatId) return alert('خطا: برای صدور توکن، لطفاً ابتدا وارد حساب کاربری خود شوید.');
+    const amt = Number(transferAmountInput.value) || 0;
+    
+    const token = await exportAccountOneTime(chatId, amt);
+    exportArea.value = token;
+    alert('✅ توکن یک‌بارمصرف با موفقیت ساخته شد. آن را برای گیرنده ارسال کنید.');
+    await renderAccount(chatId);
+  }catch(e){ 
+    alert('❌ خطا در صدور توکن: '+ (e.message || e)); 
+    console.error(e); 
+  }
+});
+
+importBase64Btn.addEventListener('click', async ()=>{
+  try{
+    const txt = importArea.value.trim(); 
+    if(!txt) return alert('خطا: لطفاً توکن دریافتی را در کادر درون‌ریزی وارد کنید.');
+    const target = await importAccountFromInput(txt);
+    alert('✅ عملیات درون‌ریزی موفقیت‌آمیز بود. مبلغ به حساب '+(target||'شما')+' واریز شد و توکن مصرف شد.');
+    await renderAccount(target);
+    if(currentChatId) await renderAccount(currentChatId); // اگر لاگین بود هم رندر شود
+  }catch(e){ 
+    alert('❌ خطا در درون‌ریزی: '+ (e.message || e)); 
+    console.error(e); 
+  }
+});
+
+(async function init(){
+  const last = localStorage.getItem('natcoin_last_chat'); 
+  if(last) chatIdInput.value = last;
+  
+  if(localStorage.getItem('natcoin_last_chat')) {
+    currentChatId = localStorage.getItem('natcoin_last_chat');
+    try{ await renderAccount(currentChatId); }catch(e){ console.warn('render init failed', e); }
+  } else {
+    renderAccount(null);
+  }
+  
+  chatIdInput.addEventListener('change', ()=> localStorage.setItem('natcoin_last_chat', chatIdInput.value.trim()));
+  
+  // بروزرسانی خودکار موجودی هر 30 ثانیه
+  setInterval(async ()=>{ 
+    if(currentChatId) await renderAccount(currentChatId); 
+  },30000); 
+})();
+</script>
+</body>
+</html>

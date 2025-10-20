@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>نمودار قیمت مهر کوین (MHRN)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#ffffff; --card:#f2fef4; --accent:#16a34a; --muted:#4b5563; --text:#111827;
+    }
+    body{
+      margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+      font-family: Vazirmatn, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      display:flex; flex-direction:column; align-items:center; gap:16px; padding:24px;
+    }
+    .card{
+      background:linear-gradient(180deg, rgba(22,163,74,0.05), rgba(22,163,74,0.02));
+      border-radius:12px; padding:18px; box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+      width:100%; max-width:900px;
+    }
+    h1{ margin:0 0 8px 0; color:var(--accent); font-size:20px; }
+    #status{ color:var(--muted); font-size:13px; margin-bottom:8px; }
+    canvas{ width:100% !important; height:320px !important; border-radius:8px; background:#ffffff; }
+    .controls{ display:flex; gap:8px; margin-top:12px; align-items:center; flex-wrap:wrap; }
+    button{
+      background:transparent; border:1px solid rgba(0,0,0,0.1); color:var(--text);
+      padding:8px 12px; border-radius:8px; cursor:pointer; backdrop-filter: blur(4px);
+    }
+    .error{ color:#dc2626; font-weight:600; margin-top:10px; }
+    .muted{ color:var(--muted); font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>نمودار قیمت مهر کوین — MHRN (مهر کوین)</h1>
+    <div id="status" class="muted">در حال آماده‌سازی...</div>
+    <canvas id="usdtChart"></canvas>
+    <div class="controls">
+      <button id="refreshBtn">بارگذاری مجدد</button>
+      <label class="muted">آپدیت خودکار هر <span id="autoSec">60</span> ثانیه</label>
+      <button id="toggleAuto">خاموش</button>
+      <div style="flex:1"></div>
+      <div class="muted">منبع داده: MEHR design</div>
+    </div>
+    <div id="error" class="error" style="display:none"></div>
+  </div>
+
+<script>
+(async function(){
+  const ctx = document.getElementById('usdtChart').getContext('2d');
+  const statusEl = document.getElementById('status');
+  const errEl = document.getElementById('error');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const toggleAutoBtn = document.getElementById('toggleAuto');
+  const autoSecEl = document.getElementById('autoSec');
+
+  let chart = null;
+  let autoInterval = 60000; // 60s
+  let autoTimer = null;
+  let autoOn = false;
+
+  function showError(text){
+    errEl.style.display = 'block';
+    errEl.textContent = text;
+  }
+  function clearError(){
+    errEl.style.display = 'none';
+    errEl.textContent = '';
+  }
+
+  function humanTime(ts){
+    const d = new Date(ts);
+    return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  async function fetchUSDTHistory(){
+    if(location.protocol === 'file:'){
+      throw new Error('اگر این فایل را مستقیم (file://) باز کرده‌ای، ممکن است مرورگر درخواست‌های شبکه را مسدود کند. پیشنهاد می‌شود با یک سرور محلی اجرا کنی (مثلاً: python -m http.server) و سپس http://localhost:8000 باز کنی.');
+    }
+
+    const url = 'https://api.coingecko.com/api/v3/coins/tether/market_chart?vs_currency=usd&days=1';
+    const res = await fetch(url, { cache: 'no-store' });
+    if(!res.ok){
+      const txt = await res.text().catch(()=>res.statusText);
+      throw new Error(`خطا از سرور (status ${res.status}): ${txt}`);
+    }
+    const data = await res.json();
+    if(!data.prices || !Array.isArray(data.prices) || data.prices.length===0){
+      throw new Error('داده قیمت معتبر از سرور دریافت نشد.');
+    }
+    return data.prices;
+  }
+
+  function buildChart(labels, values){
+    if(chart){
+      chart.data.labels = labels;
+      chart.data.datasets[0].data = values;
+      chart.update();
+      return;
+    }
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'قیمت USDT (USD)',
+          data: values,
+          fill: true,
+          borderWidth: 2,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.15)',
+          pointRadius: 0,
+          tension: 0.25,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { labels: { color: '#111827' } },
+          tooltip: {
+            callbacks: {
+              label: ctx => `قیمت: $${Number(ctx.raw).toFixed(4)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#111827', maxRotation: 0 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y: {
+            ticks: { color: '#111827' },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          }
+        }
+      }
+    });
+  }
+
+  async function loadAndRender(){
+    try{
+      clearError();
+      statusEl.textContent = 'در حال دریافت داده از CoinGecko...';
+      const prices = await fetchUSDTHistory();
+      const labels = prices.map(p => humanTime(p[0]));
+      const values = prices.map(p => p[1]);
+
+      const maxPoints = 120;
+      let step = 1;
+      if(values.length > maxPoints) step = Math.ceil(values.length / maxPoints);
+
+      const labels2 = labels.filter((_,i)=> i % step === 0);
+      const values2 = values.filter((_,i)=> i % step === 0);
+
+      buildChart(labels2, values2);
+
+      const last = values[values.length - 1];
+      statusEl.textContent = `قیمت فعلی (آخرین): $${Number(last).toFixed(6)} — ${new Date(prices[prices.length-1][0]).toLocaleString('fa-IR')}`;
+    }catch(err){
+      console.error(err);
+      showError(err.message || String(err));
+      statusEl.textContent = 'خطا در بارگذاری داده';
+    }
+  }
+
+  refreshBtn.addEventListener('click', () => {
+    loadAndRender();
+  });
+
+  toggleAutoBtn.addEventListener('click', () => {
+    autoOn = !autoOn;
+    if(autoOn){
+      toggleAutoBtn.textContent = 'روشن';
+      autoTimer = setInterval(loadAndRender, autoInterval);
+    } else {
+      toggleAutoBtn.textContent = 'خاموش';
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+  });
+
+  autoSecEl.textContent = (autoInterval/1000).toString();
+
+  await loadAndRender();
+
+  autoOn = true;
+  toggleAutoBtn.textContent = 'روشن';
+  autoTimer = setInterval(loadAndRender, autoInterval);
+
+})();
+</script>
+</body>
+</html>
