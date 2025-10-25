@@ -583,7 +583,7 @@
                     const userRef = db.collection('users').doc(currentChatId);
                     
                     if(win){
-                        const winAmount = stake * 3; 
+                        const winAmount = stake * 5; 
                         
                         await db.runTransaction(async (tx)=>{
                             const doc = await tx.get(userRef);
