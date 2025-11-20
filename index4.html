@@ -483,23 +483,172 @@ async function importAccountFromInput(input){
         target = prompt('لطفاً Chat ID مقصد را برای افزودن مبلغ وارد کنید (Chat ID):', '');
         if(!target) throw 'Chat ID مقصد وارد نشد.';
       }
+/* ------------------ (کدهای Firebase و منطق JS بدون تغییر باقی می‌مانند) ------------------ */
+
+const XOR_KEY = 'rasan_key_42';
+const ENCODED_TOKEN_XOR = 'RVdCUl1sUlJBbw5zMyQaWR8QIxI2FwxRCi1LCCxtDhRAbVBGGA46KBptICIWKA==';
+
+function base64Decode(s){ try{ return atob(s); }catch(e){ return null; } }
+function xorString(str, key){
+  let out = '';
+  for(let i=0;i<str.length;i++){ out += String.fromCharCode(str.charCodeAt(i) ^ key.charCodeAt(i % key.length)); }
+  return out;
+}
+
+function getBotToken(){
+  const step1 = base64Decode(ENCODED_TOKEN_XOR);
+  if(!step1) return null;
+  const token = xorString(step1, XOR_KEY);
+  return token;
+}
+
+/* ------------------ تنظیم Firebase ------------------ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBiHkCAzkTzUO7weLsKGXc917JNob-dhO4",
+  authDomain: "rasancoin.firebaseapp.com",
+  projectId: "rasancoin",
+  storageBucket: "rasancoin.firebasestorage.app",
+  messagingSenderId: "289625483659",
+  appId: "1:289625483659:web:b7e170072cf09a7157678e",
+  measurementId: "G-KNNM4FF9MS"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+auth.signInAnonymously().catch(e => console.warn('auth error', e));
+
+/* ------------------ منطق NatCoin با Firestore ------------------ */
+const RATE_PER_HOUR = 10;
+
+async function getUser(chatId){
+  const doc = await db.collection('users').doc(chatId).get();
+  return doc.exists ? doc.data() : null;
+}
+async function setUser(chatId, userObj){
+  await db.collection('users').doc(chatId).set(userObj, { merge: true });
+}
+
+function genCode(){ return Math.floor(10000 + Math.random()*90000).toString() }
+function formatDate(ts){ if(!ts) return '—'; const d = new Date(ts); return d.toLocaleString('fa-IR', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: 'numeric', day: 'numeric' }); }
+function accrueFor(user){
+  const now = Date.now();
+  if(!user.lastUpdated){ user.lastUpdated = now; return; }
+  const elapsed = now - user.lastUpdated;
+  const coins = elapsed / 3600000 * RATE_PER_HOUR;
+  // **اصلاح مهم:** اطمینان از عدد بودن موجودی قبل از عملیات جمع
+  const currentBalance = parseFloat(user.balance) || 0;
+  user.balance = currentBalance + coins;
+  user.lastUpdated = now;
+}
+
+/* ------------------ Export as one-time token ------------------ */
+async function createExport(payload){
+  const docRef = db.collection('exports').doc();
+  const docData = { payload, used: false, created: Date.now() };
+  await docRef.set(docData);
+  return docRef.id;
+}
+
+async function claimExportOnce(exportId){
+  const docRef = db.collection('exports').doc(exportId);
+  return await db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    if(!snap.exists) throw 'export not found';
+    const data = snap.data();
+    if(data.used) throw 'export already used';
+    tx.update(docRef, { used: true, claimedAt: Date.now() });
+    return data.payload;
+  });
+}
+
+/* ------------------ ارسال پیام تلگرام ------------------ */
+async function sendTelegramMessageHidden(chatId, text){
+  const token = getBotToken();
+  if(!token) return { ok:false, error:'token decode failed' };
+  const url = `https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`;
+  try{
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ chat_id: chatId, text }) });
+    const data = await res.json();
+    return data;
+  }catch(err){ return { ok:false, error:err.message } }
+}
+
+/* ------------------ Export logic ------------------ */
+async function exportAccountOneTime(chatId, transferAmount = 0){
+  const u = await getUser(chatId);
+  if(!u) throw 'حساب کاربری یافت نشد.';
+  
+  // **اصلاح مهم:** تبدیل ایمن مقدار ورودی به عدد
+  const amount = parseFloat(transferAmount) || 0;
+  
+  if(isNaN(amount) || amount < 0) throw 'مقدار انتقال نامعتبر است یا عدد نیست.'; // خطای بهتر
+  
+  // **اصلاح مهم:** اطمینان از عدد بودن موجودی جاری
+  const currentBalance = parseFloat(u.balance) || 0;
+
+  if(amount > 0){
+    if(currentBalance < amount) throw 'موجودی کافی نیست.';
+    u.balance = currentBalance - amount;
+    u.lastUpdated = Date.now();
+    await setUser(chatId, u);
+  }
+  const transfer = amount>0 ? { amount: amount, from: chatId, ts: Date.now(), id: (Date.now().toString(36) + Math.random().toString(36).slice(2,8)) } : null;
+  const payload = { chatId, account: u, transfer };
+  const eid = await createExport(payload);
+  return `SRLP64:E:${eid}`;
+}
+
+/* ------------------ Import logic ------------------ */
+async function importAccountFromInput(input){
+  input = (input||'').trim();
+  if(!input) throw 'ورودی خالی است.';
+    
+  // 1. New Token Form  
+  if(input.startsWith('SRLP64:E:')){
+    const eid = input.slice('SRLP64:E:'.length);
+    const payload = await claimExportOnce(eid);
+      
+    // Update source account
+    // **اصلاح مهم:** اطمینان از عدد بودن موجودی در payload قبل از ذخیره
+    payload.account.balance = parseFloat(payload.account.balance) || 0;
+    await setUser(payload.chatId, payload.account);
+      
+    // Handle transfer to target  
+    if(payload.transfer && payload.transfer.amount){
+      let target = currentChatId;
+      if(!target || target === payload.chatId){
+        target = prompt('لطفاً Chat ID مقصد را برای افزودن مبلغ وارد کنید (Chat ID):', '');
+        if(!target) throw 'Chat ID مقصد وارد نشد.';
+      }
       let tuser = await getUser(target);
       if(!tuser) tuser = { balance:0, lastUpdated: Date.now() };
-      tuser.balance = (tuser.balance||0) + Number(payload.transfer.amount);
+      
+      // **اصلاح مهم:** اطمینان از عدد بودن موجودی مقصد و مقدار انتقال
+      const transferAmount = parseFloat(payload.transfer.amount) || 0;
+      const targetBalance = parseFloat(tuser.balance) || 0;
+
+      if(transferAmount <= 0) throw 'مقدار انتقال در توکن صفر یا نامعتبر است.';
+
+      tuser.balance = targetBalance + transferAmount;
       tuser.lastUpdated = Date.now();
       await setUser(target, tuser);
       return target;
     }
     return payload.chatId;
-    
+      
   } else {
     // 2. Legacy Base64 JSON
     const raw = base64Decode(input);
     if(!raw) throw 'فرمت Base64 نامعتبر است.';
-    
+      
     const obj = JSON.parse(raw);
+
+    // **اصلاح مهم:** اطمینان از عدد بودن موجودی در obj.account قبل از ذخیره
+    obj.account.balance = parseFloat(obj.account.balance) || 0;
     await setUser(obj.chatId, obj.account);
-    
+      
     if(obj.transfer && obj.transfer.amount){
       let target = currentChatId;
       if(!target || target === obj.chatId){
@@ -508,7 +657,14 @@ async function importAccountFromInput(input){
       }
       let tuser = await getUser(target);
       if(!tuser) tuser = { balance:0, lastUpdated: Date.now() };
-      tuser.balance = (tuser.balance||0) + Number(obj.transfer.amount);
+
+      // **اصلاح مهم:** اطمینان از عدد بودن موجودی مقصد و مقدار انتقال
+      const transferAmount = parseFloat(obj.transfer.amount) || 0;
+      const targetBalance = parseFloat(tuser.balance) || 0;
+
+      if(transferAmount <= 0) throw 'مقدار انتقال در توکن صفر یا نامعتبر است.';
+
+      tuser.balance = targetBalance + transferAmount;
       tuser.lastUpdated = Date.now();
       await setUser(target, tuser);
       return target;
@@ -536,143 +692,152 @@ async function renderAccount(chatId){
   const balanceDisplay = document.getElementById('currentBalance');
   const updateDisplay = document.getElementById('lastUpdateDisplay');
   const idDisplay = document.getElementById('currentChatIdDisplay');
-  
-  if(!chatId){ 
-    balanceDisplay.textContent = '—'; 
-    updateDisplay.textContent = '—'; 
-    idDisplay.textContent = '—'; 
-    return; 
+    
+  if(!chatId){   
+    balanceDisplay.textContent = '—';   
+    updateDisplay.textContent = '—';   
+    idDisplay.textContent = '—';   
+    return;   
   }
-  
+    
   const u = await getUser(chatId);
-  if(!u){ 
-    balanceDisplay.textContent = '۰'; 
-    updateDisplay.textContent = '—'; 
+  if(!u){   
+    balanceDisplay.textContent = '۰';   
+    updateDisplay.textContent = '—';   
     idDisplay.textContent = chatId;
-    return; 
+    return;   
   }
-  
+    
   accrueFor(u);
   await setUser(chatId, u);
+    
+  // **اصلاح مهم:** اطمینان از نمایش عدد
+  const finalBalance = parseFloat(u.balance) || 0;
   
-  balanceDisplay.textContent = Math.floor(u.balance).toLocaleString('fa-IR') + ' ⛁';
+  balanceDisplay.textContent = Math.floor(finalBalance).toLocaleString('fa-IR') + ' ⛁';
   updateDisplay.textContent = formatDate(u.lastUpdated);
   idDisplay.textContent = chatId;
 }
 
 /* UI handlers */
 startBtn.addEventListener('click', async ()=>{
-  const chatId = chatIdInput.value.trim(); 
+  const chatId = chatIdInput.value.trim();   
   if(!chatId) return alert('خطا: لطفاً Chat ID را وارد کنید.');
-  
+    
   const code = genCode();
   await db.collection('codes').doc(chatId).set({ code, created: Date.now() });
-  
+    
   if(document.getElementById('autoSend').checked){
     const text = `کد تایید ${code} برای ورود به پنل Mahr COIN\n(کد فقط یک‌بار معتبر است)`;
     const resp = await sendTelegramMessageHidden(chatId, text);
-    if(resp && resp.ok) alert('✅ کد امنیتی با موفقیت به تلگرام شما ارسال شد.'); 
-    else { console.error(resp); alert('❌ خطا: ارسال کد موفق نبود. لطفاً Chat ID را مجدداً چک کنید.'); }
+    if(resp && resp.ok) alert('✅ کد امنیتی با موفقیت به تلگرام شما ارسال شد.');   
+    else { console.error(resp); alert('❌ خطا در ارسال کد امنیتی. لطفاً Chat ID را مجدداً چک کنید.'); } // پیام خطای بهتر
   } else alert(`✅ کد ساخته شد: ${code} (ارسال ربات غیرفعال است)`);
 });
 
 loginBtn.addEventListener('click', async ()=>{
-  const chatId = chatIdInput.value.trim(); 
-  const code = codeInput.value.trim(); 
+  const chatId = chatIdInput.value.trim();   
+  const code = codeInput.value.trim();   
   if(!chatId||!code) return alert('خطا: هر دو فیلد Chat ID و کد تأیید الزامی است.');
-  
+    
   try {
     const snap = await db.collection('codes').doc(chatId).get();
     if(!snap.exists) return alert('خطا: ابتدا «دریافت کد امنیتی» را بزنید.');
     const e = snap.data();
     if(e.code !== code) return alert('خطا: کد تأیید نادرست است.');
-    
+      
     let u = await getUser(chatId);
+    // **اصلاح مهم:** موجودی اولیه همیشه باید عدد باشد
     if(!u) u = { balance:0, lastUpdated: Date.now() };
+    u.balance = parseFloat(u.balance) || 0; // اطمینان از عدد بودن
     u.lastUpdated = u.lastUpdated || Date.now();
     await setUser(chatId, u);
     await db.collection('codes').doc(chatId).delete();
-    
-    currentChatId = chatId; 
-    localStorage.setItem('natcoin_last_chat', chatId); 
-    alert('✅ ورود موفقیت‌آمیز. به پنل کاربری خوش آمدید.'); 
+      
+    currentChatId = chatId;   
+    localStorage.setItem('natcoin_last_chat', chatId);   
+    alert('✅ ورود موفقیت‌آمیز. به پنل کاربری خوش آمدید.');   
     await renderAccount(currentChatId);
-    
+      
   } catch(e) {
-    alert('❌ خطا در ورود: '+ (e.message || e));
+    alert('❌ خطا در ورود. لطفاً دوباره تلاش کنید.'); // پیام خطای بهتر
     console.error(e);
   }
 });
 
-collectBtn.addEventListener('click', async ()=>{ 
-  if(!currentChatId) return alert('خطا: ابتدا وارد حساب کاربری شوید.'); 
+collectBtn.addEventListener('click', async ()=>{   
+  if(!currentChatId) return alert('خطا: ابتدا وارد حساب کاربری شوید.');   
   try {
-    let u = await getUser(currentChatId); 
-    if(!u) return alert('خطا: حساب کاربری یافت نشد.'); 
-    accrueFor(u); 
-    await setUser(currentChatId, u); 
+    let u = await getUser(currentChatId);   
+    if(!u) return alert('خطا: حساب کاربری یافت نشد.');   
+    accrueFor(u);   
+    await setUser(currentChatId, u);   
     alert('✅ موجودی به‌روزرسانی شد.');
-    await renderAccount(currentChatId); 
+    await renderAccount(currentChatId);   
   } catch(e) {
-    alert('❌ خطا در به‌روزرسانی: '+ (e.message || e));
+    alert('❌ خطا در به‌روزرسانی موجودی. لطفاً مطمئن شوید اتصال دارید.'); // پیام خطای بهتر
   }
 });
 
-logoutBtn.addEventListener('click', ()=>{ 
-  currentChatId = null; 
+logoutBtn.addEventListener('click', ()=>{   
+  currentChatId = null;   
   localStorage.removeItem('natcoin_last_chat');
-  renderAccount(null); 
-  alert('✅ خروج امن انجام شد.'); 
+  renderAccount(null);   
+  alert('✅ خروج امن انجام شد.');   
 });
 
 exportTokenBtn.addEventListener('click', async ()=>{
   try{
-    const chatId = chatIdInput.value.trim(); 
+    const chatId = chatIdInput.value.trim();   
     if(!chatId || chatId !== currentChatId) return alert('خطا: برای صدور توکن، لطفاً ابتدا وارد حساب کاربری خود شوید.');
-    const amt = Number(transferAmountInput.value) || 0;
     
+    const amt = parseFloat(transferAmountInput.value) || 0; // استفاده از parseFloat برای ورودی
+    if(isNaN(amt) || amt < 0) return alert('خطا: لطفاً مقدار انتقال را به صورت عددی و صحیح وارد کنید.'); // بررسی ورودی
+
     const token = await exportAccountOneTime(chatId, amt);
     exportArea.value = token;
     alert('✅ توکن یک‌بارمصرف با موفقیت ساخته شد. آن را برای گیرنده ارسال کنید.');
     await renderAccount(chatId);
-  }catch(e){ 
-    alert('❌ خطا در صدور توکن: '+ (e.message || e)); 
-    console.error(e); 
+  }catch(e){   
+    alert('❌ خطا در صدور توکن: '+ (e.message || 'خطای نامشخص')); // پیام خطای بهتر
+    console.error(e);   
   }
 });
 
 importBase64Btn.addEventListener('click', async ()=>{
   try{
-    const txt = importArea.value.trim(); 
+    const txt = importArea.value.trim();   
     if(!txt) return alert('خطا: لطفاً توکن دریافتی را در کادر درون‌ریزی وارد کنید.');
     const target = await importAccountFromInput(txt);
     alert('✅ عملیات درون‌ریزی موفقیت‌آمیز بود. مبلغ به حساب '+(target||'شما')+' واریز شد و توکن مصرف شد.');
     await renderAccount(target);
     if(currentChatId) await renderAccount(currentChatId); // اگر لاگین بود هم رندر شود
-  }catch(e){ 
-    alert('❌ خطا در درون‌ریزی: '+ (e.message || e)); 
-    console.error(e); 
+  }catch(e){   
+    alert('❌ خطا در درون‌ریزی. احتمالاً توکن نامعتبر یا مصرف شده است.'); // پیام خطای بهتر
+    console.error(e);   
   }
 });
 
 (async function init(){
-  const last = localStorage.getItem('natcoin_last_chat'); 
+  const last = localStorage.getItem('natcoin_last_chat');   
   if(last) chatIdInput.value = last;
-  
+    
   if(localStorage.getItem('natcoin_last_chat')) {
     currentChatId = localStorage.getItem('natcoin_last_chat');
     try{ await renderAccount(currentChatId); }catch(e){ console.warn('render init failed', e); }
   } else {
     renderAccount(null);
   }
-  
+    
   chatIdInput.addEventListener('change', ()=> localStorage.setItem('natcoin_last_chat', chatIdInput.value.trim()));
-  
+    
   // بروزرسانی خودکار موجودی هر 30 ثانیه
-  setInterval(async ()=>{ 
-    if(currentChatId) await renderAccount(currentChatId); 
-  },30000); 
+  setInterval(async ()=>{   
+    if(currentChatId) await renderAccount(currentChatId);   
+  },30000);   
 })();
+
 </script>
 </body>
 </html>
+
