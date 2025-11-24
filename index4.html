@@ -327,7 +327,7 @@
         <div class="card">
             <h2>⚙️ تنظیمات و اطلاعات حساب</h2>
             <div class="muted small" style="margin-bottom: 10px;">
-                نرخ تولید سکه: **<strong style="color:var(--color-primary); font-size:14px;">10 سکه / ساعت</strong>**
+                نرخ تولید سکه: **<strong style="color:var(--color-primary); font-size:14px;">0.02 سکه / ساعت</strong>**
             </div>
             <div class="muted small">
                 سرویس‌دهنده: **<strong style="color:var(--color-primary); font-size:14px;">screenloop.ir</strong>**
@@ -392,7 +392,7 @@ const auth = firebase.auth();
 auth.signInAnonymously().catch(e => console.warn('auth error', e));
 
 /* ------------------ منطق NatCoin با Firestore ------------------ */
-const RATE_PER_HOUR = 10;
+const RATE_PER_HOUR = 0.02;
 
 async function getUser(chatId){
   const doc = await db.collection('users').doc(chatId).get();
